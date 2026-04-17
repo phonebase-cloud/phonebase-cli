@@ -2,12 +2,12 @@
   <h1>PhoneBase CLI</h1>
   <p>Cloud phones for Claude Code — give your AI agent a real Android device</p>
   <p>
-    <a href="https://github.com/phonebase-cloud/phonebase-cli/releases"><img src="https://img.shields.io/badge/Version-1.0.1-2F81F7.svg" alt="Version 1.0.1" /></a>
+    <a href="https://github.com/phonebase-cloud/phonebase-cli/releases"><img src="https://img.shields.io/badge/Version-1.0.5-2F81F7.svg" alt="Version 1.0.5" /></a>
     <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-6E7781.svg" alt="Platform: macOS, Linux, Windows" />
     <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL%20v3-blue.svg" alt="License: GPL v3" /></a>
     <img src="https://img.shields.io/badge/Rust-1.75+-DEA584.svg?logo=rust&logoColor=white" alt="Rust 1.75+" />
   </p>
-  <p><a href="./README.md">English</a> | <a href="./docs/README.zh-CN.md">简体中文</a></p>
+  <p><a href="./README.md">English</a> | <a href="./README.zh-CN.md">简体中文</a></p>
   <p>
     <a href="https://phonebase.cloud">Website</a> ·
     <a href="https://github.com/phonebase-cloud/phonebase-cli/releases">Releases</a>
@@ -22,29 +22,51 @@ A single binary that covers everything: device lifecycle (create, start, stop, d
 
 ## Installation
 
+**1. Install via npm:**
+
 ```bash
-curl -fsSL https://get.phonebase.cloud | sh
+npm install -g phonebase-cli
 ```
 
-Then authenticate:
+<details>
+<summary>Prefer a manual install? (no Node required)</summary>
+
+Download the binary and `checksums.txt` for your platform from the [latest release](https://github.com/phonebase-cloud/phonebase-cli/releases/latest), then:
 
 ```bash
-pb login        # Browser login
-pb apikey <key> # Or set API key directly
+shasum -a 256 -c checksums.txt              # macOS (use sha256sum on Linux)
+chmod +x phonebase-v<version>-<platform>
+sudo mv phonebase-v<version>-<platform> /usr/local/bin/pb
+```
+</details>
+
+**2. Verify:**
+
+```bash
+pb --version
 ```
 
-### Update
+**3. Sign in and pick a device:**
 
 ```bash
-pb update
+pb login                                    # browser login (or: pb apikey <key>)
+pb devices                                  # list your cloud phones
+pb connect <device-code>                    # connect and start driving it
+```
+
+**Stay up to date:**
+
+```bash
+npm update -g phonebase-cli                 # npm install
+pb update                                   # manual install
 ```
 
 ## Quick Start
 
 ```bash
 # Authenticate
-pb login                          # Browser-based login
-pb apikey <your-key>              # Or set API key directly
+pb login                          # Browser login
+pb apikey <your-key>              # Or set API key
 
 # Manage devices
 pb devices                        # List all devices
@@ -53,9 +75,9 @@ pb devices info <id>              # View device details
 
 # Connect and control
 pb connect <device-id>            # Connect to a device
-pb input tap 540 960              # Tap screen at (540, 960)
-pb input swipe 540 1500 540 500   # Swipe gesture
-pb input text "hello"             # Type text
+pb tap 540 960                    # Tap at (540, 960)
+pb swipe 540 1500 540 500         # Swipe
+pb text "hello"                   # Type text
 pb shell "pm list packages"       # Run shell command
 pb screencap                      # Take screenshot
 pb disconnect                     # Disconnect
@@ -91,22 +113,33 @@ After connecting to a device (`pb connect <id>`), control it with adb-style comm
 
 ```bash
 # Input
-pb input tap <x> <y>                       # Tap
-pb input swipe <x1> <y1> <x2> <y2>         # Swipe
-pb input text <text>                        # Type text
-pb input keyevent <code>                    # Key event (e.g. KEYCODE_HOME)
+pb tap <x> <y>                             # Tap
+pb swipe <x1> <y1> <x2> <y2>               # Swipe
+pb text <text>                              # Type text
+pb keyevent <code>                          # Key event (e.g. KEYCODE_HOME)
+
+# Apps
+pb launch <package>                         # Launch an app (auto-grants permissions)
+pb packages                                 # List installed apps
+pb icon <package>                           # Show app icon in terminal
+pb install <apk|url>                        # Install APK / XAPK / URL
+pb uninstall <package>                      # Uninstall app
+pb browse <url>                             # Open URL in device browser
 
 # Shell & Files
 pb shell <command>                          # Execute shell command
-pb install <apk>                            # Install APK
 pb push <local-path>                        # Push file to device
 pb pull <remote-path>                       # Pull file from device
+pb ls <path>                                # List device files
+pb clipboard [text]                         # Get/set clipboard
 
 # Inspection
-pb screencap                                # Screenshot to .screencap/
-pb dump                                     # Dump UI hierarchy (XML)
+pb screencap                                # Screenshot to .phonebase/
+pb inspect                                  # Generate inspector HTML (screenshot + annotated XML)
+pb dump / pb dumpc                          # Dump UI hierarchy (full / compact)
+pb view                                     # Open live cloud-phone view in browser
 pb list                                     # List available control APIs
-pb info <api-name>                          # View API details
+pb info <api>                               # View API details
 ```
 
 ### Direct API Call
@@ -116,39 +149,27 @@ Pass JSON parameters directly to any control API:
 ```bash
 pb -j '{"x":100,"y":200}' input/click
 pb -f params.json input/swipe
-echo '{"command":"ls"}' | pb -f - shell/exec
-```
-
-### Interactive TUI
-
-```bash
-pb ui
+echo '{"command":"ls"}' | pb -f - system/shell
 ```
 
 ### Configuration
 
 ```bash
-pb config                   # Show current config
-pb config set gateway <url> # Set API gateway URL
-pb config set timeout 60    # Set request timeout (seconds)
+pb config                                   # Show current config (JSON)
+pb config set network_timeout 60            # Request timeout (seconds)
+pb config set device_default <device-code>  # Default device for -s omission
 ```
+
+Environment overrides: `PHONEBASE_API_KEY`, `PHONEBASE_LANG`.
 
 ## For AI Agents
 
-pb is designed as an AI agent tool. All commands output structured JSON to stdout, making it easy to parse:
+Get your AI agent (Claude Code, Codex, Cursor) driving pb out of the box:
 
-```json
-{"code": 200, "data": [...], "msg": "OK"}
-```
-
-- **stdout** = JSON data only (for parsing)
-- **stderr** = logs and human-readable messages (for debugging)
-
-Specify device with `-s` flag when working with multiple devices:
+https://github.com/phonebase-cloud/phonebase-skills
 
 ```bash
-pb -s <device-id> shell "getprop ro.build.version.sdk"
-pb -s <device-id> screencap
+npx skills add phonebase-cloud/phonebase-skills
 ```
 
 ## Building
@@ -161,30 +182,27 @@ pb -s <device-id> screencap
 ### Development
 
 ```bash
-# Debug build (uses build script for correct SDK paths)
+# Debug build (pbd → dist/debug/pbd)
 ./scripts/build-release.sh --debug --fast --local
 
-# Run tests
-cargo test --workspace
-
-# Run with debug logging
-RUST_LOG=debug ./dist/pbd devices list 2>debug.log
+# Dev-release build (pb → dist/dev-release/pb, fast compile)
+./scripts/build-release.sh --dev-release --fast --local
 ```
 
 ### Release Build
 
 ```bash
-# Current platform
+# Current platform (pb → dist/release/pb)
 ./scripts/build-release.sh --release --local
 
 # All platforms (requires Docker + cross)
-./scripts/build-release.sh --all
+./scripts/build-release.sh --release --all
 
-# Specific target
+# Specific targets
 ./scripts/build-release.sh aarch64-apple-darwin x86_64-unknown-linux-gnu
 ```
 
-Build output goes to `dist/`.
+Build output goes to `dist/<mode>/` (`debug` / `dev-release` / `release`).
 
 ## License
 
